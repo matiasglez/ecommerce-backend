@@ -5,7 +5,7 @@ from django.utils.text import slugify
 class Category(models.Model):
     name = models.CharField(max_length=150, unique=True)
     slug = models.SlugField(max_length=150, unique=True, blank=True)
-    description = models.TextField(blank=True, null=True)
+    description = models.TextField(blank=True, default="")
     
     # Relacion recursiva para subcategorias
     parent = models.ForeignKey(
@@ -23,7 +23,6 @@ class Category(models.Model):
         verbose_name = "Category"
         verbose_name_plural = "Categories"
         ordering = ["name"]
-        unique_together = (("name", "parent"), ("slug", "parent"))  # Evita que un mismo padre tenga dos subcategorías con el mismo nombre o slug
         
     def __str__(self):
         return f"{self.parent} -> {self.name}" if self.parent else self.name
@@ -35,7 +34,7 @@ class Category(models.Model):
             slug = base_slug
             counter = 1
             # Bucle para garantizar que el slug sea unico si hay colision global
-            while Category.objects.filter(slug=slug, parent=self.parent).exists():
+            while Category.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
