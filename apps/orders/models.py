@@ -40,6 +40,8 @@ class OrderItem(models.Model):
     
     class Meta:
         ordering = ("-created_on",)
+        
+        constraints = [models.UniqueConstraint(fields=["order", "product"], name="unique_product_per_order",)]
     
     def __str__(self):
         product_name = self.product.name if self.product else "Eliminado"
