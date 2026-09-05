@@ -30,6 +30,13 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = ("id", "user", "status", "order_items", "total_cost", "created_on",)
         read_only_fields = ("id", "user", "status", "order_items", "total_cost", "created_on",)
         
+    def validate_order_items(self, value):
+        product_ids = [item["product"].id for item in value]
+        
+        if len(product_ids) != len(set(product_ids)):
+            raise serializers.ValidationError("No puedes agregar el mismo producto mas de una vez")
+        return value
+    
     
     def create(self, validated_data):
         order_items = validated_data.pop("order_items", None)
