@@ -1,13 +1,16 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from apps.orders.models import Order 
 from apps.orders.serializers import OrderSerializer
+from apps.orders.services import OrderService
 
 
 class OrderViewSet(
     mixins.ListModelMixin,
-    mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
     ):
@@ -19,8 +22,17 @@ class OrderViewSet(
         return Order.objects.filter(user=self.request.user)
     
     @extend_schema(
-        request=OrderSerializer,
+        request=None,
         responses=OrderSerializer,
     )
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="checkout",
+    )
+    def checkout(self, request):
+        order = OrderService.checkout(user=request.user)
+        
+        serializer = self.get_serializer(order)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
