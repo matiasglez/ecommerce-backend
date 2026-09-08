@@ -1,6 +1,6 @@
 import uuid
 from django.db import transaction
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError, NotFound
 from apps.orders.models import Order
 from apps.payments.models import Payment, PaymentTransaction
 
@@ -12,7 +12,7 @@ class PaymentService:
         try:
             order = Order.objects.select_for_update().get(id=order_id, user=user)
         except Order.DoesNotExist:
-            raise PermissionDenied("No tienes permiso para pagar esta orden")
+            raise NotFound({"error": "Esta orden no existe"})
         
         if order.status != "PENDING":
             raise ValidationError({"error": "Solo puedes pagar una orden que este pendiente"})
