@@ -33,7 +33,7 @@ class PaymentService:
         if not created and payment.status == Payment.PaymentStatus.PAID:
             raise ValidationError({"payment": "Esta orden ya fue pagada"})
         # Se crea transaccion
-        transaction_id = f"MOCK-{uuid.uuid4}"
+        transaction_id = f"MOCK-{uuid.uuid4()}"
         
         payment_transaction = PaymentTransaction.objects.create(
             payment=payment,
