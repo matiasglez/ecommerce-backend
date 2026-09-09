@@ -1,4 +1,5 @@
 from django.db import models
+from decimal import Decimal
 from django.conf import settings
 from apps.products.models import Product
 from django.core.validators import MinValueValidator
@@ -9,7 +10,7 @@ class Cart(models.Model):
     
     @property
     def total(self):
-        return sum(item.subtotal for item in self.items.all())
+        return sum((item.subtotal for item in self.items.all()), Decimal("0.00"),)
     
 
 class CartItem(models.Model):
