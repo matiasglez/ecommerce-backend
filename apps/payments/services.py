@@ -2,6 +2,7 @@ import uuid
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, NotFound
 from apps.orders.models import Order
+from apps.orders.services import OrderService
 from apps.payments.models import Payment, PaymentTransaction
 
 
@@ -14,8 +15,10 @@ class PaymentService:
         except Order.DoesNotExist:
             raise NotFound({"error": "Esta orden no existe"})
         
+        order = OrderService.check_expiration(order)
+        
         if order.status != "PENDING":
-            raise ValidationError({"error": "Solo puedes pagar una orden que este pendiente"})
+            raise ValidationError({"error": "La orden ya no esta disponible para pagar"})
         
         if payment_method != Payment.PaymentMethod.MOCK:
             raise ValidationError({"payment_method": "El metodo de pago todavia no esta disponible"})
