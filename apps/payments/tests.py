@@ -1,4 +1,6 @@
 from decimal import Decimal
+from datetime import timedelta          
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -188,3 +190,78 @@ class PaymentTests(APITestCase):
         response = self.client.get("/api/payments/")
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+    
+    def add_product_to_cart(self, quantity=1):
+        self.client.post("/api/cart/", {
+            "product_id": str(self.product.id),
+            "quantity": quantity,
+        }, format="json")
+        
+    
+    def test_cannot_pay_expired_order(self):
+        self.add_product_to_cart(quantity=2)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        order = Order.objects.filter(user=self.user).latest("id")
+        
+        order.expires_at = timezone.now() - timedelta(minutes=1)
+        order.save(update_fields=["expires_at"])
+        
+        response = self.client.post("/api/payments/create/", {
+            "order_id": order.id,
+            "payment_method": "MOCK",
+        }, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST) 
+        
+        order.refresh_from_db()
+        
+        self.assertEqual(order.status, "CANCELLED")
+        
+    
+    def test_expired_order_restores_stock_when_payment_is_attempted(self):
+        self.add_product_to_cart(quantity=3)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.product.stock, 7)
+        
+        order = Order.objects.filter(user=self.user).latest("id")
+        
+        order.expires_at = timezone.now() - timedelta(minutes=1)
+        order.save(update_fields=["expires_at"])
+        
+        response = self.client.post("/api/payments/create/", {
+            "order_id": order.id,
+            "payment_method": "MOCK",
+        }, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.product.stock, 10)
+        
+    
+    def test_expired_order_does_not_create_payment(self):
+        self.add_product_to_cart(quantity=2)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        order = Order.objects.filter(user=self.user).latest("id")
+        
+        order.expires_at = timezone.now() - timedelta(minutes=1)
+        order.save(update_fields=["expires_at"])
+        
+        response = self.client.post("/api/payments/create/", {
+            "order_id": order.id,
+            "payment_method": "MOCK",
+        }, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        self.assertFalse(Payment.objects.filter(order=order).exists())        

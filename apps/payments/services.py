@@ -8,7 +8,6 @@ from apps.payments.models import Payment, PaymentTransaction
 
 class PaymentService:
     @staticmethod
-    @transaction.atomic
     def process_payment(user, order_id, payment_method):
         try:
             order = Order.objects.select_for_update().get(id=order_id, user=user)
@@ -23,14 +22,15 @@ class PaymentService:
         if payment_method != Payment.PaymentMethod.MOCK:
             raise ValidationError({"payment_method": "El metodo de pago todavia no esta disponible"})
         
-        payment, created = Payment.objects.get_or_create(
-            order=order,
-            defaults={
-                "amount": order.total_cost,
-                "status": Payment.PaymentStatus.PENDING,
-                "payment_method": payment_method,
-            },
-        )
+        with transaction.atomic():
+            payment, created = Payment.objects.get_or_create(
+                order=order,
+                defaults={
+                    "amount": order.total_cost,
+                    "status": Payment.PaymentStatus.PENDING,
+                    "payment_method": payment_method,
+                },
+            )
         
         # Si existe pero esta pagado no se permite otro pago
         if not created and payment.status == Payment.PaymentStatus.PAID:
