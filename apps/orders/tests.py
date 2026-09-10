@@ -1,12 +1,15 @@
 from decimal import Decimal
+from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.cart.models import Cart, CartItem
 from apps.orders.models import Order, OrderItem
 from apps.products.models import Category, Product
+from apps.orders.services import OrderService
 
 User = get_user_model()
 
@@ -167,3 +170,95 @@ class OrderTests(APITestCase):
         response = self.client.post("/api/orders/checkout/", {}, format="json")
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+    
+    def test_checkout_sets_expiration_time(self): # Comprueba que una orden reciba fecha de exp
+        self.add_product_to_cart(quantity=2)
+        
+        response = self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        order = Order.objects.get(user=self.user)
+        
+        self.assertIsNotNone(order.expires_at)
+        
+        self.assertGreater(order.expires_at, timezone.now())
+        
+    
+    def test_non_expired_order_remains_pending(self): # Orden vigente (todavia no se cancela)
+        self.add_product_to_cart(quantity=2)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        order = Order.objects.get(user=self.user)
+        
+        OrderService.check_expiration(order)
+        
+        order.refresh_from_db()
+        
+        self.assertEqual(order.status, "PENDING")
+        
+    
+    def test_expired_order_is_cancelled(self):
+        self.add_product_to_cart(quantity=2)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        order = Order.objects.get(user=self.user)
+        
+        order.expires_at = timezone.now() - timedelta(minutes=1) # now = 15:30, expires_at = 15:29
+        order.save(update_fields=["expires_at"])
+        
+        OrderService.check_expiration(order)
+        
+        order.refresh_from_db()
+        
+        self.assertEqual(order.status, "CANCELLED")
+    
+    
+    def test_expired_order_restores_stock(self):
+        self.add_product_to_cart(quantity=3)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.product.stock, 7)
+        
+        order = Order.objects.get(user=self.user)
+        
+        order.expires_at = timezone.now() - timedelta(minutes=1)
+        order.save(update_fields=["expires_at"])
+        
+        OrderService.check_expiration(order)
+        
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.product.stock, 10)
+        
+    
+    def test_expired_order_does_not_restore_stock_twice(self):
+        self.add_product_to_cart(quantity=3)
+        
+        self.client.post("/api/orders/checkout/", {}, format="json")
+        
+        order = Order.objects.get(user=self.user)
+        
+        order.expires_at = timezone.now() - timedelta(minutes=1)
+        order.save(update_fields=["expires_at"])
+        
+        OrderService.check_expiration(order)
+        
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.product.stock, 10)
+        
+        OrderService.check_expiration(order)
+        
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.product.stock, 10)        
+        
+        
+        
