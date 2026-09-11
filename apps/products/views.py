@@ -3,14 +3,16 @@ from apps.products.models import Category, Product
 from apps.products.serializers import CategorySerializer, ProductSerializer
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
+from apps.products.schemas import category_schema_view, product_schema_view
 
+@category_schema_view
 @extend_schema(tags=['categories'])
 class CategoryViewSet(viewsets.ModelViewSet):
     # Evitamos el problema de consultas lentas (N+1)
     queryset = Category.objects.all().prefetch_related("subcategories")
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
         # Al listar (/api/categories/), solo queremos las raíces.
@@ -19,6 +21,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             return queryset.filter(parent__isnull=True)
         return self.queryset
         
+@product_schema_view        
 @extend_schema(tags=['products'])        
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().select_related("category") # Optimiza la consulta uniendo tablas
