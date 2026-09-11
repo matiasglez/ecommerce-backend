@@ -8,7 +8,7 @@ urlpatterns = [
             "post": "add_item"}),
         name="cart"),
     path(
-    "cart/item/<uuid:pk>/",
+    "item/<uuid:pk>/",
     CartViewSet.as_view({"delete": "delete_item"}),
     name="cart-delete",
 )
