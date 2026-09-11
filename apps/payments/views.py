@@ -7,8 +7,10 @@ from rest_framework.response import Response
 from apps.payments.models import Payment
 from apps.payments.serializers import PaymentCreateSerializer, PaymentSerializer
 from apps.payments.services import PaymentService
+from apps.payments.schemas import payment_schema_view
 
 
+@payment_schema_view
 class PaymentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     
