@@ -7,8 +7,10 @@ from rest_framework.response import Response
 from apps.orders.models import Order 
 from apps.orders.serializers import OrderSerializer
 from apps.orders.services import OrderService
+from apps.orders.schemas import order_schema_view
 
-
+@order_schema_view
+@extend_schema(tags=["orders"])
 class OrderViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -21,10 +23,6 @@ class OrderViewSet(
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
     
-    @extend_schema(
-        request=None,
-        responses=OrderSerializer,
-    )
     @action(
         detail=False,
         methods=["post"],
