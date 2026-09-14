@@ -11,7 +11,6 @@ class Payment(models.Model):
     class PaymentMethod(models.TextChoices):
         MOCK = "MOCK", "Mock"
         MERCADO_PAGO = "MERCADOPAGO", "Mercado Pago"
-        STRIPE = "STRIPE", "Stripe"
         
     order = models.OneToOneField(Order, on_delete=models.PROTECT, related_name="payment")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
