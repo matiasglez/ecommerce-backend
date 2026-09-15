@@ -43,6 +43,7 @@ Swagger: [http://127.0.0.1:8000/api/schema/swagger-ui/](http://127.0.0.1:8000/ap
 | `FRONTEND_URL` | Base del front para `back_urls` (ej. `http://localhost:3000`) |
 | `WEBHOOK_URL` | URL pública del backend (ngrok) para `notification_url` |
 | `ALLOWED_HOSTS` | Hosts permitidos (incluí `.ngrok-free.dev` en local) |
+| `CORS_ALLOWED_ORIGINS` | Orígenes del frontend (ej. `http://localhost:3000`) |
 
 ### Webhooks en local
 

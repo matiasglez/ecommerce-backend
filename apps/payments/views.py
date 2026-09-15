@@ -19,7 +19,9 @@ class PaymentViewSet(
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Payment.objects.filter(order__user=self.request.user)
+        return Payment.objects.filter(order__user=self.request.user).order_by(
+            "-created_on"
+        )
 
     def get_serializer_class(self):
         if self.action == "create_payment":
