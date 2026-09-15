@@ -9,13 +9,16 @@ class Payment(models.Model):
         CANCELLED = "CANCELLED", "Cancelled"
         
     class PaymentMethod(models.TextChoices):
-        MOCK = "MOCK", "Mock"
         MERCADO_PAGO = "MERCADOPAGO", "Mercado Pago"
         
     order = models.OneToOneField(Order, on_delete=models.PROTECT, related_name="payment")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
-    payment_method = models.CharField(max_length=30, choices=PaymentMethod.choices, default=PaymentMethod.MOCK)
+    payment_method = models.CharField(
+        max_length=30,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.MERCADO_PAGO,
+    )
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     

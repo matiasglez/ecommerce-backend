@@ -27,12 +27,11 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    'devotion-musty-subwoofer.ngrok-free.dev',
-    '.ngrok-free.dev',  # Permite cualquier subdominio de ngrok-free.dev
-]
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="127.0.0.1,localhost,.ngrok-free.dev",
+    cast=Csv(),
+)
 
 # Application definition
 
@@ -169,5 +168,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Mercado Pago — usar decouple (lee .env). os.getenv NO carga el archivo .env.
 MERCADOPAGO_ACCESS_TOKEN = config("MERCADOPAGO_ACCESS_TOKEN")
-FRONTEND_URL = config("FRONTEND_URL")
+MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="")
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 BACKEND_URL = config("WEBHOOK_URL")  # URL pública del backend (p. ej. ngrok)

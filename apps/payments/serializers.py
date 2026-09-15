@@ -21,4 +21,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class PaymentCreateSerializer(serializers.Serializer):
     order_id = serializers.IntegerField(help_text="ID de la orden que quieres pagar")
-    payment_method = serializers.ChoiceField(choices=Payment.PaymentMethod.choices, default=Payment.PaymentMethod.MOCK)
+    payment_method = serializers.ChoiceField(
+        choices=Payment.PaymentMethod.choices,
+        default=Payment.PaymentMethod.MERCADO_PAGO,
+    )

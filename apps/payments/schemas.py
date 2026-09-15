@@ -20,8 +20,11 @@ payment_schema_view = extend_schema_view(
         },
     ),
     create_payment=extend_schema(
-        summary="Process payment",
-        description="Create a payment for an order using the selected payment method.",
+        summary="Create Mercado Pago checkout preference",
+        description=(
+            "Creates a PENDING payment for the order and returns an "
+            "`init_point` URL to redirect the user to Mercado Pago Checkout Pro."
+        ),
         request=PaymentCreateSerializer,
         responses={
             201: PaymentSerializer,
@@ -31,10 +34,10 @@ payment_schema_view = extend_schema_view(
         },
         examples=[
             OpenApiExample(
-                "Mock payment example",
+                "Mercado Pago payment",
                 value={
                     "order_id": 1,
-                    "payment_method": "MOCK",
+                    "payment_method": "MERCADOPAGO",
                 },
             )
         ],
