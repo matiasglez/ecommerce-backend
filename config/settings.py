@@ -27,7 +27,10 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
+if DEBUG:
+    ALLOWED_HOSTS = list(ALLOWED_HOSTS) + [".ngrok-free.app", ".ngrok-free.dev", ".ngrok.io"]
+
 
 # Application definition
 
@@ -163,8 +166,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Mercado Pago
-MP_ACCESS_TOKEN = config("MP_ACCESS_TOKEN", default="")
-MP_PUBLIC_KEY = config("MP_PUBLIC_KEY", default="")
+MP_ACCESS_TOKEN = config("MERCADOPAGO_ACCESS_TOKEN", default=config("MP_ACCESS_TOKEN", default=""))
+MP_PUBLIC_KEY = config("MERCADOPAGO_PUBLIC_KEY", default=config("MP_PUBLIC_KEY", default=""))
+MP_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default=config("MP_WEBHOOK_SECRET", default=""))
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
-BACKEND_URL = config("BACKEND_URL", default="http://localhost:8000")
+BACKEND_URL = config("WEBHOOK_URL", default=config("BACKEND_URL", default="http://localhost:8000"))
+
 

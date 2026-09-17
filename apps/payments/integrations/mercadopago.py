@@ -1,3 +1,5 @@
+import hmac
+import hashlib
 import mercadopago
 from django.conf import settings
 
@@ -5,6 +7,42 @@ from django.conf import settings
 class MercadoPagoClient:
     def __init__(self):
         self.sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN)
+
+    @staticmethod
+    def verify_webhook_signature(request, payment_id=None):
+        secret = settings.MP_WEBHOOK_SECRET
+        if not secret:
+            return True
+
+        x_signature = request.headers.get("x-signature") or request.META.get("HTTP_X_SIGNATURE")
+        x_request_id = request.headers.get("x-request-id") or request.META.get("HTTP_X_REQUEST_ID")
+
+        if not x_signature or not x_request_id:
+            return False
+
+        parts = {}
+        for part in x_signature.split(","):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                parts[k.strip()] = v.strip()
+
+        ts = parts.get("ts")
+        v1 = parts.get("v1")
+
+        if not ts or not v1:
+            return False
+
+        data_id = request.query_params.get("data.id") or payment_id or ""
+        manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
+
+        expected_signature = hmac.new(
+            secret.encode("utf-8"),
+            manifest.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        return hmac.compare_digest(expected_signature, v1)
+
 
     def create_preference(self, order, payment):
         # Items de la orden

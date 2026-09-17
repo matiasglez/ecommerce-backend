@@ -8,7 +8,9 @@ from rest_framework.response import Response
 from apps.payments.models import Payment
 from apps.payments.serializers import PaymentCreateSerializer, PaymentSerializer
 from apps.payments.services import PaymentService
+from apps.payments.integrations.mercadopago import MercadoPagoClient
 from apps.payments.schemas import payment_schema_view
+
 
 
 @payment_schema_view
@@ -60,5 +62,18 @@ class MercadoPagoWebhookView(APIView):
     def post(self, request, *args, **kwargs):
         # Datos del body o query params
         data = request.data if request.data else request.query_params.dict()
+
+        payment_id = None
+        if isinstance(data, dict):
+            if "data" in data and isinstance(data["data"], dict):
+                payment_id = data["data"].get("id")
+            if not payment_id:
+                payment_id = data.get("id")
+
+        # Verificamos la firma de seguridad si esta configurado el webhook secret
+        if not MercadoPagoClient.verify_webhook_signature(request, payment_id):
+            return Response({"error": "Firma no valida"}, status=status.HTTP_401_UNAUTHORIZED)
+
         PaymentService.handle_webhook(data)
         return Response(status=status.HTTP_200_OK)
+
