@@ -161,3 +161,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Mercado Pago
+MP_ACCESS_TOKEN = config("MP_ACCESS_TOKEN", default="")
+MP_PUBLIC_KEY = config("MP_PUBLIC_KEY", default="")
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
+BACKEND_URL = config("BACKEND_URL", default="http://localhost:8000")
+
