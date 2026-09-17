@@ -288,8 +288,9 @@ class PaymentTests(APITestCase):
         self.assertEqual(payment.status, Payment.PaymentStatus.PENDING)
         self.assertEqual(payment.payment_method, Payment.PaymentMethod.MERCADO_PAGO)
 
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.verify_webhook_signature", return_value=True)
     @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
-    def test_mercadopago_webhook_approved(self, mock_get_payment):
+    def test_mercadopago_webhook_approved(self, mock_get_payment, mock_verify):
         # Creamos el pago pendiente previo
         payment = Payment.objects.create(
             order=self.order,
@@ -325,8 +326,9 @@ class PaymentTests(APITestCase):
             status=PaymentTransaction.TransactionStatus.APPROVED,
         ).exists())
 
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.verify_webhook_signature", return_value=True)
     @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
-    def test_mercadopago_webhook_rejected(self, mock_get_payment):
+    def test_mercadopago_webhook_rejected(self, mock_get_payment, mock_verify):
         payment = Payment.objects.create(
             order=self.order,
             amount=Decimal("1500.00"),
@@ -360,9 +362,24 @@ class PaymentTests(APITestCase):
             status=PaymentTransaction.TransactionStatus.REJECTED,
         ).exists())
 
-    def test_mercadopago_webhook_invalid_payload(self):
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.verify_webhook_signature", return_value=True)
+    def test_mercadopago_webhook_invalid_payload(self, mock_verify):
         self.client.force_authenticate(user=None)
 
         response = self.client.post("/api/payments/mercadopago/webhook/", {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.verify_webhook_signature")
+    def test_mercadopago_webhook_invalid_signature(self, mock_verify):
+        mock_verify.return_value = False
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post("/api/payments/mercadopago/webhook/", {
+            "type": "payment",
+            "data": {"id": "123456789"},
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
         
