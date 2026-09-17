@@ -11,12 +11,15 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
 
 class PaymentSerializer(serializers.ModelSerializer):
     transactions = PaymentTransactionSerializer(many=True, read_only=True)
+    init_point = serializers.CharField(read_only=True, required=False)
+
     class Meta:
         model = Payment
         fields = ("id", "order", "amount", "status", "payment_method",
-                "transactions", "created_on", "updated_on")
+                "transactions", "init_point", "created_on", "updated_on")
         read_only_fields = ("id", "order", "amount", "status", "payment_method",
-                "transactions", "created_on", "updated_on")
+                "transactions", "init_point", "created_on", "updated_on")
+
     
 
 class PaymentCreateSerializer(serializers.Serializer):

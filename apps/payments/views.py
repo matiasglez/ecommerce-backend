@@ -1,7 +1,8 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework import mixins, status, viewsets
+from rest_framework.views import APIView
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from apps.payments.models import Payment
@@ -45,3 +46,19 @@ class PaymentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         response_serializer = PaymentSerializer(payment)
         
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class MercadoPagoWebhookView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        summary="Mercado Pago Webhook",
+        description="Recibe notificaciones IPN/Webhook de Mercado Pago",
+        responses={200: OpenApiResponse(description="Notificación recibida")},
+    )
+    def post(self, request, *args, **kwargs):
+        # Datos del body o query params
+        data = request.data if request.data else request.query_params.dict()
+        PaymentService.handle_webhook(data)
+        return Response(status=status.HTTP_200_OK)
