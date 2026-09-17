@@ -2,8 +2,10 @@ from decimal import Decimal
 from datetime import timedelta          
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from unittest.mock import patch
 from rest_framework import status
 from rest_framework.test import APITestCase
+
 
 from apps.orders.models import Order, OrderItem
 from apps.payments.models import Payment, PaymentTransaction
@@ -264,4 +266,103 @@ class PaymentTests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         
-        self.assertFalse(Payment.objects.filter(order=order).exists())        
+        self.assertFalse(Payment.objects.filter(order=order).exists())
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.create_preference")
+    def test_create_mercadopago_payment(self, mock_create_preference):
+        mock_create_preference.return_value = {
+            "init_point": "https://www.mercadopago.com/checkout/v1/redirect?pref_id=test-pref-123"
+        }
+
+        response = self.client.post("/api/payments/create/", {
+            "order_id": self.order.id,
+            "payment_method": "MERCADOPAGO",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data["init_point"],
+            "https://www.mercadopago.com/checkout/v1/redirect?pref_id=test-pref-123"
+        )
+        payment = Payment.objects.get(order=self.order)
+        self.assertEqual(payment.status, Payment.PaymentStatus.PENDING)
+        self.assertEqual(payment.payment_method, Payment.PaymentMethod.MERCADO_PAGO)
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_mercadopago_webhook_approved(self, mock_get_payment):
+        # Creamos el pago pendiente previo
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=Decimal("1500.00"),
+            status=Payment.PaymentStatus.PENDING,
+            payment_method=Payment.PaymentMethod.MERCADO_PAGO,
+        )
+
+        mock_get_payment.return_value = {
+            "status": "approved",
+            "external_reference": str(self.order.id),
+            "transaction_amount": 1500.00,
+        }
+
+        # Desautenticamos para simular peticion externa de Mercado Pago
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post("/api/payments/mercadopago/webhook/", {
+            "type": "payment",
+            "data": {"id": "123456789"},
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        payment.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(payment.status, Payment.PaymentStatus.PAID)
+        self.assertEqual(self.order.status, "PAID")
+        self.assertTrue(PaymentTransaction.objects.filter(
+            payment=payment,
+            transaction_id="123456789",
+            status=PaymentTransaction.TransactionStatus.APPROVED,
+        ).exists())
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_mercadopago_webhook_rejected(self, mock_get_payment):
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=Decimal("1500.00"),
+            status=Payment.PaymentStatus.PENDING,
+            payment_method=Payment.PaymentMethod.MERCADO_PAGO,
+        )
+
+        mock_get_payment.return_value = {
+            "status": "rejected",
+            "external_reference": str(self.order.id),
+            "transaction_amount": 1500.00,
+        }
+
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post("/api/payments/mercadopago/webhook/", {
+            "type": "payment",
+            "data": {"id": "987654321"},
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        payment.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(payment.status, Payment.PaymentStatus.PENDING)
+        self.assertEqual(self.order.status, "PENDING")
+        self.assertTrue(PaymentTransaction.objects.filter(
+            payment=payment,
+            transaction_id="987654321",
+            status=PaymentTransaction.TransactionStatus.REJECTED,
+        ).exists())
+
+    def test_mercadopago_webhook_invalid_payload(self):
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post("/api/payments/mercadopago/webhook/", {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
