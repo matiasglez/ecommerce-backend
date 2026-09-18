@@ -19,7 +19,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     # Evitamos el problema de consultas lentas (N+1)
     queryset = Category.objects.all().prefetch_related("subcategories")
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsStaffOrReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()
