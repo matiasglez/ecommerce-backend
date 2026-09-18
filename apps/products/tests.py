@@ -11,9 +11,15 @@ User = get_user_model()
 
 class ProductTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            email = "test@example.com",
+        self.staff_user = User.objects.create_user(
+            email = "staff@example.com",
             password = "12345678",
+            is_staff = True
+        )
+        
+        self.user = User.objects.create_user(
+            email="test@example.com",
+            password="12345678",
         )
         
         self.category = Category.objects.create(
@@ -21,7 +27,7 @@ class ProductTests(APITestCase):
             description = "Bebidas para mayor recuperacion"
         )
         
-        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=self.staff_user)
         
     def test_anonymous_user_can_list_products(self):
         self.client.force_authenticate(user=None)
@@ -43,6 +49,20 @@ class ProductTests(APITestCase):
         }, format="json",)
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+    def test_non_staff_user_cannot_create_product(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post("/api/products/", {
+            "category": self.category.id,
+            "name": "Radar",
+            "description": "Energizante",
+            "price": 3000.00,
+            "stock": 10,
+            "is_active": True,
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)    
     
     def test_create_product(self):
         response = self.client.post("/api/products/", {
@@ -56,6 +76,20 @@ class ProductTests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(Product.objects.filter(name="Radar").exists())
+        
+    def test_non_staff_user_cannot_delete_product(self):
+        product = Product.objects.create(
+            category=self.category,
+            name="Radar",
+            description="Energizante",
+            price=3000,
+            stock=10,
+        )
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete(f"/api/products/{product.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         
     def test_product_uses_uuid(self):
         response = self.client.post("/api/products/", {
