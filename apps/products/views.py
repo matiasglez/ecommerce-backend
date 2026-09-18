@@ -5,6 +5,14 @@ from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from apps.products.schemas import category_schema_view, product_schema_view
 
+
+class IsStaffOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
+
+
 @category_schema_view
 @extend_schema(tags=['categories'])
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -26,7 +34,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().select_related("category") # Optimiza la consulta uniendo tablas
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsStaffOrReadOnly]
     
     def get_queryset(self):
         queryset = super().get_queryset()
