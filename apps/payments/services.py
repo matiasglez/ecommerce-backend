@@ -9,6 +9,7 @@ from apps.payments.integrations.mercadopago import MercadoPagoClient
 
 class PaymentService:
     @staticmethod
+    @transaction.atomic
     def process_payment(user, order_id, payment_method):
         try:
             order = Order.objects.select_for_update().get(id=order_id, user=user)
@@ -69,7 +70,7 @@ class PaymentService:
             preference = mp_client.create_preference(order, payment)
             
             # Guardamos la url de checkout para la respuesta
-            payment.init_point = preference.get("init_point")
+            payment.init_point = preference.get("init_point") if preference else None
             return payment, None
 
     @staticmethod

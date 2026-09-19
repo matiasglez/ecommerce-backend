@@ -83,7 +83,15 @@ class MercadoPagoClient:
         }
 
         preference_response = self.sdk.preference().create(preference_data)
-        return preference_response.get("response", {})
+        
+        print("RESPUESTA COMPLETA DE SDK MERCADO PAGO:", preference_response)
+        
+        response_data = preference_response.get("response", {})
+        
+        if not response_data and isinstance(preference_response, dict):
+            response_data = preference_response
+        
+        return response_data
 
     def get_payment_info(self, payment_id):
         # Consulta el pago en la API de Mercado Pago
