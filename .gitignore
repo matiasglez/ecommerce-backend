@@ -1,6 +1,9 @@
 venv/
-*.pyc
 __pycache__/
+*.pyc
+.git/
 .env
 db.sqlite3
-media/
+.pytest_cache/
+.vscode/
+.idea/

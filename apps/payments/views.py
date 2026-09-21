@@ -52,7 +52,6 @@ class PaymentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
 class MercadoPagoWebhookView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes = []
 
     @extend_schema(
         summary="Mercado Pago Webhook",
