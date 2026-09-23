@@ -7,9 +7,7 @@ ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt \
-    psycopg[binary]==3.2.13 \
-    mercadopago==3.6.0
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
