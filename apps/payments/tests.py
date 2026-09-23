@@ -1,8 +1,13 @@
 from decimal import Decimal
 from datetime import timedelta          
-from django.utils import timezone
-from django.contrib.auth import get_user_model
 from unittest.mock import patch
+
+import hashlib
+import hmac
+
+from django.contrib.auth import get_user_model
+from django.test import override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -379,6 +384,74 @@ class PaymentTests(APITestCase):
             "type": "payment",
             "data": {"id": "123456789"},
         }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+    @staticmethod
+    def _build_signature(secret, data_id, request_id, ts):
+        manifest = f"id:{data_id};request-id:{request_id};ts:{ts};"
+        return hmac.new(
+            secret.encode("utf-8"),
+            manifest.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+
+    @override_settings(MP_WEBHOOK_SECRET="test-webhook-secret")
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_mercadopago_webhook_with_valid_signature(self, mock_get_payment):
+        mock_get_payment.return_value = {}
+
+        self.client.force_authenticate(user=None)
+
+        data_id = "123456789"
+        request_id = "req-12345"
+        ts = "1706907200"
+        v1 = self._build_signature("test-webhook-secret", data_id, request_id, ts)
+
+        response = self.client.post(
+            f"/api/payments/mercadopago/webhook/?type=payment&data.id={data_id}",
+            {"type": "payment", "data": {"id": data_id}},
+            format="json",
+            HTTP_X_SIGNATURE=f"ts={ts},v1={v1}",
+            HTTP_X_REQUEST_ID=request_id,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+    @override_settings(MP_WEBHOOK_SECRET="test-webhook-secret")
+    def test_mercadopago_webhook_with_invalid_signature(self):
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post(
+            "/api/payments/mercadopago/webhook/?type=payment&data.id=123456789",
+            {"type": "payment", "data": {"id": "123456789"}},
+            format="json",
+            HTTP_X_SIGNATURE="ts=1706907200,v1=invalid-signature-value",
+            HTTP_X_REQUEST_ID="req-12345",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+    @override_settings(MP_WEBHOOK_SECRET="")
+    def test_mercadopago_webhook_without_secret_is_rejected(self):
+        self.client.force_authenticate(user=None)
+
+        data_id = "123456789"
+        request_id = "req-12345"
+        ts = "1706907200"
+        v1 = self._build_signature("", data_id, request_id, ts)
+
+        response = self.client.post(
+            f"/api/payments/mercadopago/webhook/?type=payment&data.id={data_id}",
+            {"type": "payment", "data": {"id": data_id}},
+            format="json",
+            HTTP_X_SIGNATURE=f"ts={ts},v1={v1}",
+            HTTP_X_REQUEST_ID=request_id,
+        )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
