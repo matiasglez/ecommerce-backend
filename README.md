@@ -1,194 +1,197 @@
 # E-commerce API — Django REST Framework
 
-API REST de un e-commerce desarrollada con **Django REST Framework**. Incluye catálogo de productos con categorías jerárquicas, carrito de compras, órdenes con expiración y restock automático, pagos con Mercado Pago (y un método `MOCK` para desarrollo) y webhook con verificación de firma HMAC-SHA256.
+**[English](README.md) | [Español](README.es.md)**
 
-> Proyecto pensado como portfolio de desarrollo backend. Documentación interactiva de la API en Swagger.
+A REST API for an online store, built with **Django REST Framework**.
 
-## Stack
+It includes: a product catalog with categories, a shopping cart, orders with automatic expiration, payments with Mercado Pago (plus a `MOCK` method for development) and a webhook with HMAC-SHA256 signature verification.
+
+> Made as a backend developer portfolio. Interactive API docs available in Swagger.
+
+## Tech stack
 
 - Python 3.12 / Django 6.1
 - Django REST Framework 3.18
-- djangorestframework-simplejwt (autenticación JWT)
+- djangorestframework-simplejwt (JWT auth)
 - drf-spectacular (OpenAPI / Swagger)
 - PostgreSQL 17
 - django-cors-headers
 - Docker + docker-compose
-- SDK oficial de Mercado Pago
+- Mercado Pago official SDK
 
-## Funcionalidades
+## Features
 
-- Registro y login con JWT (access + refresh).
-- Productos con UUID, precios y stock; categorías con subcategorías recursivas.
-- Catálogo público de solo lectura; creación/edición restringida a staff.
-- Carrito por usuario con control de stock acumulado.
-- Checkout: crea la orden, descuenta stock, vacía el carrito y fija una fecha de expiración (15 min).
-- Órdenes vencidas: al intentar pagar se cancelan y el stock se restaura (con transacciones para evitar sobreventa).
-- Pagos MOCK (flujo de desarrollo) y Mercado Pago (preference de checkout).
-- Webhook de Mercado Pago con verificación de firma HMAC-SHA256 y manejo idempotente de notificaciones.
-- Admin personalizado para todas las apps.
-- Documentación OpenAPI en `/api/schema/swagger-ui/`.
+- Register and login with JWT (access + refresh).
+- Products with UUID, prices and stock; categories with recursive subcategories.
+- Public read-only catalog; only staff can create or edit products.
+- Per-user cart with accumulated stock check.
+- Checkout: creates the order, decreases stock, empties the cart and sets an expiration date (15 minutes).
+- Expired orders: when you try to pay, the order is cancelled and the stock is restored (with transactions to avoid overselling).
+- MOCK payments (for development) and Mercado Pago (checkout preference).
+- Mercado Pago webhook with HMAC-SHA256 signature check and idempotent handling.
+- Custom admin for all apps.
+- OpenAPI docs at `/api/schema/swagger-ui/`.
 
-## Arquitectura
+## Project structure
 
 ```
 config/                  # settings, urls, wsgi/asgi
 apps/
-  users/                 # modelo custom User + JWT
-  products/              # productos y categorías
-  cart/                  # carrito de compras
-  orders/                # órdenes y expiración
-  payments/              # pagos, webhook e integración con Mercado Pago
+  users/                 # custom User model + JWT
+  products/              # products and categories
+  cart/                  # shopping cart
+  orders/                # orders and expiration
+  payments/              # payments, webhook and Mercado Pago integration
 ```
 
-Cada app separa **models / serializers / views / services / schemas (OpenAPI) / tests**, manteniendo la lógica de negocio en la capa de servicios.
+Each app has its own **models / serializers / views / services / schemas (OpenAPI) / tests**, and keeps the business logic in the services layer.
 
-## Instalación con Docker
+## Setup with Docker
 
-Requisitos: Docker y Docker Compose.
+Requirements: Docker and Docker Compose.
 
-1. Cloná el repositorio.
-2. Creá el archivo `.env` a partir de `.env.example`:
+1. Clone the repository.
+2. Create the `.env` file from `.env.example`:
 
    ```bash
    cp .env.example .env
    ```
 
-3. Completá las variables (ver tabla de abajo).
-4. Levantá los servicios:
+3. Fill in the variables (see the table below).
+4. Start the services:
 
    ```bash
    docker compose up --build
    ```
 
-5. Aplicá las migraciones y creá un superusuario:
+5. Run the migrations and create a superuser:
 
    ```bash
    docker compose run --rm web python manage.py migrate
    docker compose run --rm web python manage.py createsuperuser
    ```
 
-La API queda disponible en `http://localhost:8000`, el admin en `/admin/` y Swagger en `/api/schema/swagger-ui/`.
+The API runs at `http://localhost:8000`, the admin at `/admin/` and Swagger at `/api/schema/swagger-ui/`.
 
-## Variables de entorno
+## Environment variables
 
-| Variable | Descripción |
+| Variable | Description |
 |---|---|
-| `SECRET_KEY` | Clave secreta de Django. Usá un valor largo y aleatorio en producción. |
-| `DEBUG` | `True` para desarrollo, `False` en producción. |
-| `ALLOWED_HOSTS` | Hosts permitidos separados por coma. |
-| `POSTGRES_DB` | Nombre de la base. Coincide con el servicio `db` (`ecommerce`). |
-| `POSTGRES_USER` | Usuario de la base (`postgres` por defecto en el servicio `db`). |
-| `POSTGRES_PASSWORD` | Password de la base (debe coincidir con la del servicio `db`). |
-| `POSTGRES_HOST` | Host de la base (`db` cuando se usa Docker Compose). |
-| `POSTGRES_PORT` | Puerto de la base (`5432`). |
-| `MP_ACCESS_TOKEN` | Access token de Mercado Pago (opcional, solo para pagos reales). |
-| `MP_WEBHOOK_SECRET` | Secret para verificar la firma del webhook (opcional, ver sección webhook). |
-| `FRONTEND_URL` | URL del frontend para los `back_urls` de Mercado Pago. |
-| `BACKEND_URL` / `WEBHOOK_URL` | URL pública donde recibir el webhook. |
-| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos para CORS separados por coma. |
-| `CSRF_TRUSTED_ORIGINS` | Orígenes de confianza para CSRF. |
+| `SECRET_KEY` | Django secret key. Use a long random value in production. |
+| `DEBUG` | `True` for development, `False` in production. |
+| `ALLOWED_HOSTS` | Allowed hosts, separated by commas. |
+| `POSTGRES_DB` | Database name. Matches the `db` service (`ecommerce`). |
+| `POSTGRES_USER` | Database user (`postgres` by default in the `db` service). |
+| `POSTGRES_PASSWORD` | Database password (must match the `db` service). |
+| `POSTGRES_HOST` | Database host (`db` with Docker Compose). |
+| `POSTGRES_PORT` | Database port (`5432`). |
+| `MP_ACCESS_TOKEN` | Mercado Pago access token (optional, only for real payments). |
+| `MP_WEBHOOK_SECRET` | Secret to verify the webhook signature (optional, see webhook section). |
+| `FRONTEND_URL` | Frontend URL used for the Mercado Pago `back_urls`. |
+| `BACKEND_URL` / `WEBHOOK_URL` | Public URL that receives the webhook. |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins, separated by commas. |
+| `CSRF_TRUSTED_ORIGINS` | Trusted origins for CSRF. |
 
-> El servicio `db` de `docker-compose.yml` define credenciales por defecto (`ecommerce` / `postgres` / `postgres`). Si cambiás las de `.env`, actualizalas también en el servicio `db`.
+> The `db` service in `docker-compose.yml` has default credentials (`ecommerce` / `postgres` / `postgres`). If you change them in `.env`, update them in the `db` service too.
 
 ## Endpoints
 
 ### Auth (`/api/users/`)
-| Método | Ruta | Descripción |
+| Method | Path | Description |
 |---|---|---|
-| POST | `/api/users/auth/register/` | Registra un usuario (email + password). |
-| POST | `/api/users/auth/login/` | Obtiene `access` y `refresh`. |
-| POST | `/api/users/auth/token/refresh/` | Renueva el access token. |
+| POST | `/api/users/auth/register/` | Register a user (email + password). |
+| POST | `/api/users/auth/login/` | Get `access` and `refresh` tokens. |
+| POST | `/api/users/auth/token/refresh/` | Refresh the access token. |
 
-### Productos (`/api/products/`)
-| Método | Ruta | Descripción |
+### Products (`/api/products/`)
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/products/` | Lista productos (público). Filtro `?category_id=`. |
-| POST | `/api/products/` | Crea un producto (staff). |
-| GET/PUT/PATCH/DELETE | `/api/products/{uuid}/` | Detalle, edición y borrado (staff para escritura). |
-| GET/POST | `/api/products/categories/` | Lista categorías raíz con subcategorías / crea categoría (staff). |
+| GET | `/api/products/` | List products (public). Query param `?category_id=`. |
+| POST | `/api/products/` | Create a product (staff). |
+| GET/PUT/PATCH/DELETE | `/api/products/{uuid}/` | Detail, update and delete (staff for writes). |
+| GET/POST | `/api/products/categories/` | List root categories with subcategories / create a category (staff). |
 
-### Carrito (`/api/cart/`)
-| Método | Ruta | Descripción |
+### Cart (`/api/cart/`)
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/cart/` | Carrito actual del usuario (items + total). |
-| POST | `/api/cart/` | Agrega producto o incrementa cantidad (`product_id`, `quantity`). |
-| DELETE | `/api/cart/item/{product_id}/` | Elimina completamente un producto del carrito. |
+| GET | `/api/cart/` | Current user cart (items + total). |
+| POST | `/api/cart/` | Add a product or increase quantity (`product_id`, `quantity`). |
+| DELETE | `/api/cart/item/{product_id}/` | Remove a product completely from the cart. |
 
-### Órdenes (`/api/orders/`)
-| Método | Ruta | Descripción |
+### Orders (`/api/orders/`)
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/orders/` | Órdenes del usuario. |
-| GET | `/api/orders/{id}/` | Detalle de una orden del usuario. |
-| POST | `/api/orders/checkout/` | Crea una orden a partir del carrito (descuenta stock, expira en 15 min). |
+| GET | `/api/orders/` | User orders. |
+| GET | `/api/orders/{id}/` | Detail of a user order. |
+| POST | `/api/orders/checkout/` | Create an order from the cart (decreases stock, expires in 15 minutes). |
 
-### Pagos (`/api/payments/`)
-| Método | Ruta | Descripción |
+### Payments (`/api/payments/`)
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/payments/` | Pagos del usuario. |
-| POST | `/api/payments/create/` | Crea un pago para una orden (`order_id`, `payment_method`: `MOCK` o `MERCADOPAGO`). |
-| POST | `/api/payments/mercadopago/webhook/` | Webhook de Mercado Pago (público, con verificación de firma). |
+| GET | `/api/payments/` | User payments. |
+| POST | `/api/payments/create/` | Create a payment for an order (`order_id`, `payment_method`: `MOCK` or `MERCADOPAGO`). |
+| POST | `/api/payments/mercadopago/webhook/` | Mercado Pago webhook (public, with signature check). |
 
-## Autenticación
+## Authentication
 
-1. Registrate (`/api/users/auth/register/`).
-2. Logueate (`/api/users/auth/login/`) y usá el `access` token como `Authorization: Bearer <token>`.
-3. Cuando expire, renovalo con `refresh` en `/api/users/auth/token/refresh/`.
+1. Register at `/api/users/auth/register/`.
+2. Login at `/api/users/auth/login/` and send the `access` token as `Authorization: Bearer <token>`.
+3. When it expires, refresh it at `/api/users/auth/token/refresh/`.
 
-Los endpoints protegidos devuelven `401` sin token. En Swagger hay un botón **Authorize** para pegar el token.
+Protected endpoints return `401` without a token. Swagger has an **Authorize** button to paste the token.
 
-## Flujo de compra
+## Purchase flow
 
-1. El usuario agrega productos al carrito (se valida stock acumulado).
-2. `/api/orders/checkout/` crea la orden **PENDING**, descuenta stock (con `select_for_update` para evitar sobreventa) y vacía el carrito.
-3. `/api/payments/create/` crea el pago:
-   - **MOCK**: aprueba al instante, marca la orden **PAID** y registra la transacción.
-   - **MERCADOPAGO**: devuelve un `init_point` para redirigir al checkout de Mercado Pago.
-4. El webhook de Mercado Pago notifica el resultado y actualiza pago/orden.
+1. The user adds products to the cart (accumulated stock is checked).
+2. `/api/orders/checkout/` creates the order as **PENDING**, decreases stock (with `select_for_update` to avoid overselling) and empties the cart.
+3. `/api/payments/create/` creates the payment:
+   - **MOCK**: approves immediately, sets the order as **PAID** and saves the transaction.
+   - **MERCADOPAGO**: returns an `init_point` to redirect to the Mercado Pago checkout.
+4. The Mercado Pago webhook sends the result and updates the payment/order.
 
-Si la orden vence antes de pagarse, al intentar pagarla se cancela (CANCELLED) y el stock se restaura.
+If the order expires before paying, when you try to pay it gets cancelled (CANCELLED) and the stock is restored.
 
 ## Mercado Pago
 
-- Configurá `MP_ACCESS_TOKEN` en `.env`.
-- Para recibir webhooks en desarrollo, usá una URL pública expuesta con [ngrok](https://ngrok.com) y seteá `WEBHOOK_URL` a esa dirección:
+- Set `MP_ACCESS_TOKEN` in `.env`.
+- To receive webhooks during development, expose a public URL with [ngrok](https://ngrok.com) and set `WEBHOOK_URL` to it:
 
   ```
-  WEBHOOK_URL=https://tu-nombre.ngrok-free.app
+  WEBHOOK_URL=https://your-name.ngrok-free.app
   ```
 
-- En el panel de Mercado Pago configurá la notificación hacia `https://<host>/api/payments/mercadopago/webhook/` y el **webhook secret** (o el secret de la firma). Con `MP_WEBHOOK_SECRET` seteado, el endpoint exige la firma válida; sin él, el webhook rechaza las peticiones.
-- La verificación valida el header `x-signature` (parámetros `ts` y `v1`) usando `x-request-id` y el `data.id` del payload.
+- In the Mercado Pago panel, set the notification URL to `https://<host>/api/payments/mercadopago/webhook/` and the webhook secret (or the signature secret). With `MP_WEBHOOK_SECRET` set, the endpoint requires a valid signature; without it, the webhook rejects all requests.
+- The verification checks the `x-signature` header (`ts` and `v1` params) using `x-request-id` and the `data.id` from the payload.
 
 ## Tests
 
-La suite tiene **67 tests** de API: usuarios, productos, categorías, carrito, órdenes, pagos, webhook y la firma del webhook.
+The test suite has **67 tests**: users, products, categories, cart, orders, payments, webhook and webhook signature.
 
 ```bash
 docker compose run --rm web python manage.py test
 ```
 
-Para correr una app puntual:
+Run a single app:
 
 ```bash
 docker compose run --rm web python manage.py test apps.payments
 ```
 
-## Decisiones técnicas
+## Technical decisions
 
-- **Usuario con email como username**: modelo `User` custom con `AUTH_USER_MODEL`.
-- **UUID en productos**: evita enumerar el catálogo; órdenes/pagos usan PK entera.
-- **Precio histórico**: `OrderItem` guarda el precio al momento de la compra; si el producto se borra, el historial sobrevive (`SET_NULL`).
-- **Stock y concurrencia**: el checkout bloquea filas de producto con `select_for_update` dentro de una transacción.
-- **Expiración de órdenes**: se evalúa al querer pagar; si está vencida, se cancela y restaura stock. Idealmente un job periódico lo complementaría (ver limitaciones).
-- **Idempotencia del webhook**: `PaymentTransaction.transaction_id` es único; las notificaciones repetidas no duplican transacciones.
-- **Firma del webhook**: HMAC-SHA256 sobre `id;request-id;ts;` con `hmac.compare_digest`.
+- **Email as username**: custom `User` model with `AUTH_USER_MODEL`.
+- **UUID for products**: avoids enumerating the catalog; orders and payments use an integer PK.
+- **Historical price**: `OrderItem` saves the price at the moment of purchase. If the product is deleted, the order history survives (`SET_NULL`).
+- **Stock and concurrency**: checkout locks product rows with `select_for_update` inside a transaction.
+- **Order expiration**: checked when the user tries to pay. If expired, the order is cancelled and the stock is restored. A periodic job would be better (see limitations).
+- **Webhook idempotency**: `PaymentTransaction.transaction_id` is unique, so repeated notifications don't create duplicate transactions.
+- **Webhook signature**: HMAC-SHA256 over `id;request-id;ts;` with `hmac.compare_digest`.
 
-## Limitaciones
+## Limitations
 
-- La expiración de órdenes es **lazy**: solo se resuelve al intentar pagar (no hay tarea en segundo plano).
-- Sin rate limiting en login/registro (a mejorar antes de producción).
-- El registro no aplica los password validators de Django (a mejorar).
-- La integración real con Mercado Pago requiere token válido y una URL pública para el webhook; el flujo `MOCK` sirve para probar todo lo demás offline.
-- El setup de Docker usa el dev server de Django (`runserver`); para producción faltaría `gunicorn` y servir `static`/`media` (p. ej. WhiteNoise).
-- No hay email de verificación ni recuperación de contraseña.
-```
+- Order expiration is **lazy**: it only runs when the user tries to pay (no background job).
+- No rate limiting on login/register (improve before production).
+- The register endpoint does not run Django password validators (to improve).
+- The real Mercado Pago integration needs a valid token and a public URL for the webhook; the `MOCK` flow lets you test everything else offline.
+- The Docker setup uses Django `runserver`; for production you need `gunicorn` and serving `static`/`media` (e.g. WhiteNoise).
+- No email verification or password recovery.
