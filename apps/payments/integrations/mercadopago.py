@@ -12,7 +12,7 @@ class MercadoPagoClient:
     def verify_webhook_signature(request, payment_id=None):
         secret = settings.MP_WEBHOOK_SECRET
         if not secret:
-            return True
+            return False
 
         x_signature = request.headers.get("x-signature") or request.META.get("HTTP_X_SIGNATURE")
         x_request_id = request.headers.get("x-request-id") or request.META.get("HTTP_X_REQUEST_ID")
