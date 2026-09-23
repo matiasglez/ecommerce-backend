@@ -56,7 +56,8 @@ class MercadoPagoWebhookView(APIView):
     @extend_schema(
         summary="Mercado Pago Webhook",
         description="Recibe notificaciones IPN/Webhook de Mercado Pago",
-        responses={200: OpenApiResponse(description="Notificación recibida")},
+        request=None,
+        responses={200: OpenApiResponse(response=None, description="Notificación recibida")},
     )
     def post(self, request, *args, **kwargs):
         # Datos del body o query params
