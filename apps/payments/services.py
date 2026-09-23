@@ -9,14 +9,13 @@ from apps.payments.integrations.mercadopago import MercadoPagoClient
 
 class PaymentService:
     @staticmethod
-    @transaction.atomic
     def process_payment(user, order_id, payment_method):
         try:
-            order = Order.objects.select_for_update().get(id=order_id, user=user)
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(id=order_id, user=user)
+                order = OrderService.check_expiration(order)
         except Order.DoesNotExist:
             raise NotFound({"error": "Esta orden no existe"})
-        
-        order = OrderService.check_expiration(order)
         
         if order.status != "PENDING":
             raise ValidationError({"error": "La orden ya no esta disponible para pagar"})
@@ -33,45 +32,45 @@ class PaymentService:
                     "payment_method": payment_method,
                 },
             )
-        
-        # Si existe pero esta pagado no se permite otro pago
-        if not created and payment.status == Payment.PaymentStatus.PAID:
-            raise ValidationError({"payment": "Esta orden ya fue pagada"})
 
-        # Si cambio de metodo de pago, actualizamos
-        if not created and payment.payment_method != payment_method:
-            payment.payment_method = payment_method
-            payment.save(update_fields=["payment_method", "updated_on"])
+            # Si existe pero esta pagado no se permite otro pago
+            if not created and payment.status == Payment.PaymentStatus.PAID:
+                raise ValidationError({"payment": "Esta orden ya fue pagada"})
 
-        # Metodo MOCK
-        if payment_method == Payment.PaymentMethod.MOCK:
-            transaction_id = f"MOCK-{uuid.uuid4()}"
-            
-            payment_transaction = PaymentTransaction.objects.create(
-                payment=payment,
-                transaction_id=transaction_id,
-                amount=payment.amount,
-                status=PaymentTransaction.TransactionStatus.APPROVED,
-            )
-            
-            # Se actualiza payment 
-            payment.status = Payment.PaymentStatus.PAID
-            payment.save(update_fields=["status", "updated_on"])
-            
-            # Se actualiza orden
-            order.status = "PAID"
-            order.save(update_fields=["status"])
-            
-            return payment, payment_transaction
+            # Si cambio de metodo de pago, actualizamos
+            if not created and payment.payment_method != payment_method:
+                payment.payment_method = payment_method
+                payment.save(update_fields=["payment_method", "updated_on"])
 
-        # Metodo MERCADO PAGO
-        if payment_method == Payment.PaymentMethod.MERCADO_PAGO:
-            mp_client = MercadoPagoClient()
-            preference = mp_client.create_preference(order, payment)
-            
-            # Guardamos la url de checkout para la respuesta
-            payment.init_point = preference.get("init_point") if preference else None
-            return payment, None
+            # Metodo MOCK
+            if payment_method == Payment.PaymentMethod.MOCK:
+                transaction_id = f"MOCK-{uuid.uuid4()}"
+                
+                payment_transaction = PaymentTransaction.objects.create(
+                    payment=payment,
+                    transaction_id=transaction_id,
+                    amount=payment.amount,
+                    status=PaymentTransaction.TransactionStatus.APPROVED,
+                )
+                
+                # Se actualiza payment 
+                payment.status = Payment.PaymentStatus.PAID
+                payment.save(update_fields=["status", "updated_on"])
+                
+                # Se actualiza orden
+                order.status = "PAID"
+                order.save(update_fields=["status"])
+                
+                return payment, payment_transaction
+
+            # Metodo MERCADO PAGO
+            if payment_method == Payment.PaymentMethod.MERCADO_PAGO:
+                mp_client = MercadoPagoClient()
+                preference = mp_client.create_preference(order, payment)
+                
+                # Guardamos la url de checkout para la respuesta
+                payment.init_point = preference.get("init_point") if preference else None
+                return payment, None
 
     @staticmethod
     def handle_webhook(data):
