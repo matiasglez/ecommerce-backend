@@ -1,6 +1,7 @@
 import html
 
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 from django.utils.text import slugify
@@ -145,11 +146,22 @@ class Command(BaseCommand):
                 product.stock = stock
                 product.is_active = True
 
-            # upload_to="products/" ya antepone la carpeta; guardamos solo el nombre.
-            needs_image = not product.image or product.image.name.startswith("products/products/")
-            if needs_image:
-                file_name = f"{slugify(product.name)}.svg"
-                product.image.save(file_name, _svg_image(product.name, sub.name, accent), save=False)
+            # Las imagenes deben usar nombres estables: si el archivo del seed
+            # esta horneado en la imagen Docker, apuntamos directo a ese nombre.
+            # Los sufijos de storage se generan en runtime y desaparecen en cada
+            # redeploy (el filesystem del contenedor es efimero) -> 404.
+            base_name = f"products/{slugify(product.name)}.svg"
+            image_name = product.image.name if product.image else ""
+            image_ok = bool(image_name) and default_storage.exists(image_name)
+            if not image_ok:
+                if default_storage.exists(base_name):
+                    product.image.name = base_name
+                else:
+                    product.image.save(
+                        f"{slugify(product.name)}.svg",
+                        _svg_image(product.name, sub.name, accent),
+                        save=False,
+                    )
             product.save()
 
             self.stdout.write(self.style.SUCCESS(f"{'Creado' if created else 'Actualizado'} producto: {product.name}"))
