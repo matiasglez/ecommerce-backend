@@ -4,11 +4,14 @@ from apps.orders.models import Order, OrderItem
 
 class OrderItemSerializer(serializers.ModelSerializer):
     cost = serializers.ReadOnlyField()
+    product_name = serializers.CharField(
+        source="product.name", read_only=True, allow_null=True
+    )
     
     class Meta:
         model = OrderItem
         fields = (
-            "id", "product", "quantity", "price",
+            "id", "product", "product_name", "quantity", "price",
             "cost", "created_on", "updated_on"
         )
         read_only_fields = (
