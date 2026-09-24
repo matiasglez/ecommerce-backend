@@ -158,8 +158,9 @@ class Command(BaseCommand):
                 email="admin@voltstore.com",
                 password="Volt123456!",
                 is_staff=True,
+                is_superuser=True,
             )
-            self.stdout.write(self.style.SUCCESS("Creado usuario staff: admin@voltstore.com / Volt123456!"))
+            self.stdout.write(self.style.SUCCESS("Creado superusuario demo: admin@voltstore.com / Volt123456!"))
 
         self.stdout.write(self.style.SUCCESS(
             f"Seed finalizado: {Product.objects.filter(is_active=True).count()} productos activos, "
