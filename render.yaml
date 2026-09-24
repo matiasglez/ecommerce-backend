@@ -5,7 +5,6 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/schema/
-    startCommand: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$$PORT"
     envVars:
       - key: SECRET_KEY
         generateValue: true
@@ -48,4 +47,4 @@ databases:
   - name: ecommerce-db
     plan: free
     databaseName: ecommerce
-    user: postgres
+    user: ecommerce
