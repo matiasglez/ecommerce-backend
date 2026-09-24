@@ -165,7 +165,7 @@ If the order expires before paying, when you try to pay it gets cancelled (CANCE
 
 ## Tests
 
-The test suite has **67 tests**: users, products, categories, cart, orders, payments, webhook and webhook signature.
+The test suite has **78 tests**: users, products, categories, cart, orders, payments, webhook and webhook signature.
 
 ```bash
 docker compose run --rm web python manage.py test

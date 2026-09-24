@@ -163,7 +163,7 @@ Si la orden vence antes de pagarse, al intentar pagarla se cancela (CANCELLED) y
 
 ## Tests
 
-La suite tiene **67 tests** de API: usuarios, productos, categorías, carrito, órdenes, pagos, webhook y la firma del webhook.
+La suite tiene **78 tests** de API: usuarios, productos, categorías, carrito, órdenes, pagos, webhook y la firma del webhook.
 
 ```bash
 docker compose run --rm web python manage.py test
