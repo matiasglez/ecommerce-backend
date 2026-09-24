@@ -77,8 +77,10 @@ class MercadoPagoClient:
                 "failure": f"{settings.FRONTEND_URL}/checkout/failure",
                 "pending": f"{settings.FRONTEND_URL}/checkout/pending",
             },
-            "auto_return": "approved",
-            "external_reference": str(order.id),
+# Sin auto_return: Mercado Pago exige back_urls HTTPS cuando esta
+        # activado, lo que rompe el demo local con http://localhost.
+        # Sin el flag, acepta localhost y el comprador vuelve con un boton.
+        "external_reference": str(order.id),
             "notification_url": f"{settings.BACKEND_URL}/api/payments/mercadopago/webhook/",
         }
 

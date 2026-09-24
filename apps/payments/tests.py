@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import timedelta          
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import hashlib
 import hmac
@@ -16,6 +16,7 @@ from apps.orders.models import Order, OrderItem
 from apps.payments.models import Payment, PaymentTransaction
 from apps.products.models import Category, Product
 from apps.cart.models import Cart, CartItem
+from apps.payments.integrations.mercadopago import MercadoPagoClient
 
 
 User = get_user_model()
@@ -292,6 +293,36 @@ class PaymentTests(APITestCase):
         payment = Payment.objects.get(order=self.order)
         self.assertEqual(payment.status, Payment.PaymentStatus.PENDING)
         self.assertEqual(payment.payment_method, Payment.PaymentMethod.MERCADO_PAGO)
+
+    @patch("mercadopago.SDK")
+    def test_preference_uses_localhost_back_urls_for_local_demo(self, mock_sdk):
+        pref_create = MagicMock(return_value={"response": {"init_point": "https://mp/redirect"}})
+        mock_sdk.return_value.preference.return_value.create = pref_create
+
+        payment = Payment.objects.create(
+            order=self.order,
+            amount=Decimal("1500.00"),
+            status=Payment.PaymentStatus.PENDING,
+            payment_method=Payment.PaymentMethod.MERCADO_PAGO,
+        )
+
+        client = MercadoPagoClient()
+        client.create_preference(self.order, payment)
+
+        payload = pref_create.call_args.args[0]
+        self.assertEqual(
+            payload["back_urls"]["success"],
+            "http://localhost:3000/checkout/success",
+        )
+        self.assertEqual(
+            payload["back_urls"]["failure"],
+            "http://localhost:3000/checkout/failure",
+        )
+        self.assertEqual(
+            payload["back_urls"]["pending"],
+            "http://localhost:3000/checkout/pending",
+        )
+        self.assertNotIn("auto_return", payload)
 
     @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.verify_webhook_signature", return_value=True)
     @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
