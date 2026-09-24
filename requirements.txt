@@ -9,6 +9,8 @@ django-filter==26.1
 djangorestframework==3.18.0
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.30.0
+gunicorn==23.0.0
+whitenoise==6.9.0
 idna==3.19
 inflection==0.5.1
 jsonschema==4.26.0

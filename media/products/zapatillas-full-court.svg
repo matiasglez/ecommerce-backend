@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <rect width="800" height="800" fill="#0E0E12"/>
+  <polygon points="800,0 800,520 300,800 800,800" fill="#2E6BFF" opacity="0.9"/>
+  <polygon points="0,800 0,240 260,800" fill="#2E6BFF" opacity="0.25"/>
+  <text x="48" y="120" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="bold" letter-spacing="8" fill="#2E6BFF">VOLT</text>
+  <text x="48" y="180" font-family="Arial, Helvetica, sans-serif" font-size="22" letter-spacing="4" fill="#8A8A93">/ BÁSQUET</text>
+  <text x="48" y="560" font-family="Arial, Helvetica, sans-serif" font-size="120" font-weight="900" letter-spacing="-2" fill="#F5F5F7">ZAPATILLAS</text>
+  <rect x="48" y="620" width="120" height="14" fill="#2E6BFF"/>
+</svg>

@@ -7,5 +7,7 @@ db.sqlite3
 .pytest_cache/
 .vscode/
 .idea/
-media/
+media/*
+!media/products/
+staticfiles/
 *.log
