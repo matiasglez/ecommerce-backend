@@ -32,7 +32,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
 @product_schema_view        
 @extend_schema(tags=['products'])        
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().select_related("category") # Optimiza la consulta uniendo tablas
+    # order_by estable: sin él, Postgres puede devolver filas en orden
+    # arbitrario y la paginación repite/salta productos entre páginas.
+    queryset = Product.objects.all().select_related("category").order_by("name", "id")
     serializer_class = ProductSerializer
     permission_classes = [IsStaffOrReadOnly]
     
