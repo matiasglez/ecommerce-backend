@@ -73,9 +73,9 @@ class MercadoPagoClient:
                 "email": order.user.email,
             },
             "back_urls": {
-                "success": f"{settings.FRONTEND_URL}/payment/success",
-                "failure": f"{settings.FRONTEND_URL}/payment/failure",
-                "pending": f"{settings.FRONTEND_URL}/payment/pending",
+                "success": f"{settings.FRONTEND_URL}/checkout/success",
+                "failure": f"{settings.FRONTEND_URL}/checkout/failure",
+                "pending": f"{settings.FRONTEND_URL}/checkout/pending",
             },
             "auto_return": "approved",
             "external_reference": str(order.id),
@@ -83,8 +83,6 @@ class MercadoPagoClient:
         }
 
         preference_response = self.sdk.preference().create(preference_data)
-        
-        print("RESPUESTA COMPLETA DE SDK MERCADO PAGO:", preference_response)
         
         response_data = preference_response.get("response", {})
         
