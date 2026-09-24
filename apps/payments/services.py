@@ -156,18 +156,30 @@ class PaymentService:
         )
 
     @staticmethod
-    def confirm_mercadopago_payment(user, order, payment_id):
-        """Confirma el pago desde la redireccion de retorno (browser → backend)."""
+    def confirm_mercadopago_payment(user, order, payment_id=None):
+        """Confirma el pago consultando la API de Mercado Pago.
+
+        Con payment_id usa /payments/{id}; sin el, busca el pago mas reciente
+        de la orden por external_reference (para no depender de la
+        redireccion de retorno del frontend).
+        """
         mp_client = MercadoPagoClient()
-        payment_info = mp_client.get_payment_info(payment_id)
-        if payment_info is None or payment_info.get("external_reference") is None:
+        if payment_id:
+            payment_info = mp_client.get_payment_info(payment_id)
+        else:
+            payment_info = mp_client.search_payment_by_external_reference(order.id)
+
+        if payment_info is None:
             raise ValidationError({"error": "No pudimos recuperar el pago de Mercado Pago"})
+
+        if payment_info.get("external_reference") is None:
+            raise ValidationError({"error": "No pudimos recuperar el pago de Mercado Pago"})
+
+        if str(payment_info.get("external_reference")) != str(order.id):
+            raise ValidationError({"error": "El pago no corresponde a esta orden"})
 
         if not user.is_authenticated or order.user_id != user.id:
             raise ValidationError({"error": "No puedes confirmar esta orden"})
-
-        if str(payment_info.get("external_reference", "")) != str(order.id):
-            raise ValidationError({"error": "El pago no corresponde a esta orden"})
 
         payment, _ = Payment.objects.get_or_create(
             order=order,
@@ -181,7 +193,7 @@ class PaymentService:
             payment.payment_method = Payment.PaymentMethod.MERCADO_PAGO
             payment.save(update_fields=["payment_method", "updated_on"])
 
-        PaymentService.apply_mp_payment_info(payment, order, payment_info, transaction_id=str(payment_id))
+        PaymentService.apply_mp_payment_info(payment, order, payment_info, transaction_id=str(payment_info.get("id", "")))
         return payment
 
         

@@ -29,4 +29,9 @@ class PaymentCreateSerializer(serializers.Serializer):
 
 class PaymentConfirmSerializer(serializers.Serializer):
     order_id = serializers.IntegerField(help_text="ID de la orden a confirmar")
-    payment_id = serializers.CharField(help_text="ID del pago devuelto por Mercado Pago en la redireccion")
+    payment_id = serializers.CharField(
+        help_text="ID del pago devuelto por Mercado Pago (opcional: si no viene, se busca por external_reference)",
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )

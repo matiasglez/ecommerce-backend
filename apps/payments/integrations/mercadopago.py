@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import mercadopago
+import requests
 from django.conf import settings
 
 
@@ -97,4 +98,25 @@ class MercadoPagoClient:
         # Consulta el pago en la API de Mercado Pago
         payment_response = self.sdk.payment().get(str(payment_id))
         return payment_response.get("response", {})
+
+    def search_payment_by_external_reference(self, external_reference):
+        # Buscamos el pago mas reciente de una orden usando external_reference.
+        # El search del SDK responde 400, usamos la API REST directa.
+        headers = {"Authorization": f"Bearer {settings.MP_ACCESS_TOKEN}"}
+        params = {
+            "external_reference": str(external_reference),
+            "sort": "date_created",
+            "criteria": "desc",
+            "limit": "1",
+        }
+        response = requests.get(
+            "https://api.mercadopago.com/v1/payments/search",
+            headers=headers,
+            params=params,
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return None
+        results = response.json().get("results") or []
+        return results[0] if results else None
 

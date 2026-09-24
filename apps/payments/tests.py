@@ -647,6 +647,38 @@ class PaymentConfirmTests(APITestCase):
         self.assertEqual(self.order.status, "PENDING")
         self.assertEqual(self.payment.status, Payment.PaymentStatus.PENDING)
 
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.search_payment_by_external_reference")
+    def test_confirm_by_external_reference_without_payment_id(self, mock_search):
+        mock_search.return_value = {
+            "id": "999777",
+            "external_reference": str(self.order.id),
+            "status": "approved",
+            "transaction_amount": 1000.0,
+        }
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "PAID")
+        tx = PaymentTransaction.objects.get(payment=self.payment)
+        self.assertEqual(tx.transaction_id, "999777")
+        self.assertEqual(tx.status, PaymentTransaction.TransactionStatus.APPROVED)
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.search_payment_by_external_reference")
+    def test_confirm_without_payment_id_no_mp_match(self, mock_search):
+        mock_search.return_value = None
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "PENDING")
+
     @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
     def test_confirm_requires_authentication(self, mock_get_payment):
         mock_get_payment.return_value = self._approved_info()

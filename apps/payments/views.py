@@ -77,7 +77,7 @@ class PaymentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         serializer.is_valid(raise_exception=True)
 
         order_id = serializer.validated_data["order_id"]
-        payment_id = serializer.validated_data["payment_id"]
+        payment_id = serializer.validated_data.get("payment_id")
 
         try:
             order = Order.objects.get(id=order_id, user=request.user)
