@@ -112,7 +112,28 @@ def _svg_image(product_name, category_name, accent):
 class Command(BaseCommand):
     help = "Carga categorias y productos demo con identidad VOLT (idempotente)."
 
+    def _remove_duplicate_products(self):
+        # Si dos deploys corren el seed a la vez, get_or_create/create puede
+        # duplicar productos (name no es unique). Nos quedamos con el mas
+        # antiguo (OrderItem usa SET_NULL, el historial de compras sobrevive).
+        duplicated_names = list(
+            Product.objects.values("name")
+            .annotate(total=Count("id"))
+            .filter(total__gt=1)
+            .values_list("name", flat=True)
+        )
+        for name in duplicated_names:
+            keep = Product.objects.filter(name=name).order_by("id").first()
+            removed = Product.objects.filter(name=name).exclude(pk=keep.pk).count()
+            Product.objects.filter(name=name).exclude(pk=keep.pk).delete()
+            self.stdout.write(self.style.WARNING(f"Duplicados eliminados de '{name}': {removed}"))
+
     def handle(self, *args, **options):
+        # Self-heal ANTES de upsert: si quedaron duplicados de un deploy
+        # anterior, get_or_create lanzaria MultipleObjectsReturned y romperia
+        # el deploy.
+        self._remove_duplicate_products()
+
         root_by_slug = {}
         for root_name, accent in ACCENTS.items():
             root, _ = Category.objects.get_or_create(name=root_name)
@@ -129,22 +150,18 @@ class Command(BaseCommand):
             sub.description = f"{sub_name} · Volt Store"
             sub.save()
 
-            product, created = Product.objects.get_or_create(
-                name=name,
-                defaults={
-                    "category": sub,
-                    "description": description,
-                    "price": price,
-                    "stock": stock,
-                    "is_active": True,
-                },
-            )
-            if not created:
-                product.category = sub
-                product.description = description
-                product.price = price
-                product.stock = stock
-                product.is_active = True
+            # filter().first() en vez de get_or_create: si un deploy anterior
+            # dejo duplicados (o dos seeds corren a la vez), get_or_create
+            # lanzaria MultipleObjectsReturned y romperia el deploy.
+            product = Product.objects.filter(name=name).order_by("id").first()
+            created = product is None
+            if created:
+                product = Product(name=name)
+            product.category = sub
+            product.description = description
+            product.price = price
+            product.stock = stock
+            product.is_active = True
 
             # Las imagenes deben usar nombres estables: si el archivo del seed
             # esta horneado en la imagen Docker, apuntamos directo a ese nombre.
@@ -166,20 +183,9 @@ class Command(BaseCommand):
 
             self.stdout.write(self.style.SUCCESS(f"{'Creado' if created else 'Actualizado'} producto: {product.name}"))
 
-        # Self-heal: si dos deploys corren el seed a la vez, get_or_create puede
-        # duplicar productos. Nos quedamos con el mas antiguo (OrderItem usa
-        # SET_NULL, el historial de compras sobrevive).
-        duplicated_names = list(
-            Product.objects.values("name")
-            .annotate(total=Count("id"))
-            .filter(total__gt=1)
-            .values_list("name", flat=True)
-        )
-        for name in duplicated_names:
-            keep = Product.objects.filter(name=name).order_by("id").first()
-            removed = Product.objects.filter(name=name).exclude(pk=keep.pk).count()
-            Product.objects.filter(name=name).exclude(pk=keep.pk).delete()
-            self.stdout.write(self.style.WARNING(f"Duplicados eliminados de '{name}': {removed}"))
+        # Y otra vez al final, por si dos seeds corrieron en paralelo durante
+        # este mismo arranque.
+        self._remove_duplicate_products()
 
         if not User.objects.filter(email="admin@voltstore.com").exists():
             User.objects.create_user(
