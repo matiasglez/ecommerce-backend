@@ -70,7 +70,54 @@ class PaymentService:
                 
                 # Guardamos la url de checkout para la respuesta
                 payment.init_point = preference.get("init_point") if preference else None
+                payment.save(update_fields=["init_point", "updated_on"])
                 return payment, None
+
+    @staticmethod
+    def apply_mp_payment_info(payment, order, payment_info, transaction_id=None):
+        """Aplica el estado reportado por Mercado Pago a un pago/orden (idempotente)."""
+        mp_status = payment_info.get("status")
+        amount = payment_info.get("transaction_amount")
+
+        payment_id = (
+            transaction_id
+            or str(payment_info.get("id", ""))
+            or f"mp-unknown-{payment.id}"
+        )
+
+        with transaction.atomic():
+            payment_transaction, _ = PaymentTransaction.objects.get_or_create(
+                transaction_id=payment_id,
+                defaults={
+                    "payment": payment,
+                    "amount": amount or payment.amount,
+                    "status": PaymentTransaction.TransactionStatus.PENDING,
+                },
+            )
+
+            if mp_status == "approved":
+                payment_transaction.status = PaymentTransaction.TransactionStatus.APPROVED
+                payment_transaction.save(update_fields=["status"])
+
+                payment.status = Payment.PaymentStatus.PAID
+                payment.save(update_fields=["status", "updated_on"])
+
+                order.status = "PAID"
+                order.save(update_fields=["status"])
+
+            elif mp_status in ["rejected", "cancelled"]:
+                payment_transaction.status = PaymentTransaction.TransactionStatus.REJECTED
+                payment_transaction.save(update_fields=["status"])
+
+            elif mp_status == "refunded":
+                payment_transaction.status = PaymentTransaction.TransactionStatus.REFUNDED
+                payment_transaction.save(update_fields=["status"])
+
+            elif mp_status == "pending":
+                payment_transaction.status = PaymentTransaction.TransactionStatus.PENDING
+                payment_transaction.save(update_fields=["status"])
+
+        return payment_transaction
 
     @staticmethod
     def handle_webhook(data):
@@ -95,9 +142,6 @@ class PaymentService:
             return None
 
         order_id = payment_info.get("external_reference")
-        mp_status = payment_info.get("status")
-        amount = payment_info.get("transaction_amount")
-
         if not order_id:
             return None
 
@@ -107,36 +151,37 @@ class PaymentService:
         except (Order.DoesNotExist, Payment.DoesNotExist, ValueError):
             return None
 
-        with transaction.atomic():
-            # Idempotencia: buscamos o creamos la transaccion
-            payment_transaction, _ = PaymentTransaction.objects.get_or_create(
-                transaction_id=str(payment_id),
-                defaults={
-                    "payment": payment,
-                    "amount": amount or payment.amount,
-                    "status": PaymentTransaction.TransactionStatus.PENDING,
-                },
-            )
+        return PaymentService.apply_mp_payment_info(
+            payment, order, payment_info, transaction_id=str(payment_id)
+        )
 
-            # Actualizamos segun el estado en Mercado Pago
-            if mp_status == "approved":
-                payment_transaction.status = PaymentTransaction.TransactionStatus.APPROVED
-                payment_transaction.save(update_fields=["status"])
+    @staticmethod
+    def confirm_mercadopago_payment(user, order, payment_id):
+        """Confirma el pago desde la redireccion de retorno (browser → backend)."""
+        mp_client = MercadoPagoClient()
+        payment_info = mp_client.get_payment_info(payment_id)
+        if payment_info is None or payment_info.get("external_reference") is None:
+            raise ValidationError({"error": "No pudimos recuperar el pago de Mercado Pago"})
 
-                payment.status = Payment.PaymentStatus.PAID
-                payment.save(update_fields=["status", "updated_on"])
+        if not user.is_authenticated or order.user_id != user.id:
+            raise ValidationError({"error": "No puedes confirmar esta orden"})
 
-                order.status = "PAID"
-                order.save(update_fields=["status"])
+        if str(payment_info.get("external_reference", "")) != str(order.id):
+            raise ValidationError({"error": "El pago no corresponde a esta orden"})
 
-            elif mp_status in ["rejected", "cancelled"]:
-                payment_transaction.status = PaymentTransaction.TransactionStatus.REJECTED
-                payment_transaction.save(update_fields=["status"])
+        payment, _ = Payment.objects.get_or_create(
+            order=order,
+            defaults={
+                "amount": order.total_cost,
+                "status": Payment.PaymentStatus.PENDING,
+                "payment_method": Payment.PaymentMethod.MERCADO_PAGO,
+            },
+        )
+        if payment.payment_method != Payment.PaymentMethod.MERCADO_PAGO:
+            payment.payment_method = Payment.PaymentMethod.MERCADO_PAGO
+            payment.save(update_fields=["payment_method", "updated_on"])
 
-            elif mp_status == "refunded":
-                payment_transaction.status = PaymentTransaction.TransactionStatus.REFUNDED
-                payment_transaction.save(update_fields=["status"])
-
-        return payment_transaction
+        PaymentService.apply_mp_payment_info(payment, order, payment_info, transaction_id=str(payment_id))
+        return payment
 
         

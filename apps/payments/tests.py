@@ -455,4 +455,177 @@ class PaymentTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+
+class PaymentConfirmTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="confirm@example.com",
+            password="12345678"
+        )
+
+        self.other_user = User.objects.create_user(
+            email="confirm-other@example.com",
+            password="12345678"
+        )
+
+        self.category = Category.objects.create(name="Accesorios")
+
+        self.product = Product.objects.create(
+            category=self.category,
+            name="Garrafa de agua",
+            description="Agua",
+            price=1000.00,
+            stock=10,
+            is_active=True,
+        )
+
+        self.order = Order.objects.create(user=self.user, status="PENDING")
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=1,
+            price=Decimal("1000.00"),
+        )
+
+        self.payment = Payment.objects.create(
+            order=self.order,
+            amount=self.order.total_cost,
+            status=Payment.PaymentStatus.PENDING,
+            payment_method=Payment.PaymentMethod.MERCADO_PAGO,
+            init_point="https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=123",
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+    def _approved_info(self):
+        return {
+            "id": "567890",
+            "external_reference": str(self.order.id),
+            "status": "approved",
+            "transaction_amount": 1000.0,
+        }
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_approved_marks_order_paid(self, mock_get_payment):
+        mock_get_payment.return_value = self._approved_info()
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.payment.refresh_from_db()
+        self.assertEqual(self.order.status, "PAID")
+        self.assertEqual(self.payment.status, Payment.PaymentStatus.PAID)
+        transaction = PaymentTransaction.objects.get(payment=self.payment)
+        self.assertEqual(transaction.status, PaymentTransaction.TransactionStatus.APPROVED)
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_creates_payment_when_missing(self, mock_get_payment):
+        self.payment.delete()
+        mock_get_payment.return_value = {
+            "id": "777",
+            "external_reference": str(self.order.id),
+            "status": "approved",
+            "transaction_amount": 1000.0,
+        }
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "777",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payment = Payment.objects.get(order=self.order)
+        self.assertEqual(payment.status, Payment.PaymentStatus.PAID)
+        self.assertEqual(payment.payment_method, Payment.PaymentMethod.MERCADO_PAGO)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "PAID")
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_rejects_mismatched_external_reference(self, mock_get_payment):
+        info = self._approved_info()
+        info["external_reference"] = "99999"
+        mock_get_payment.return_value = info
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "PENDING")
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_rejects_unknown_payment(self, mock_get_payment):
+        mock_get_payment.return_value = {}
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "does-not-exist",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_confirm_order_from_another_user_is_404(self):
+        other_order = Order.objects.create(user=self.other_user, status="PENDING")
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": other_order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_is_idempotent(self, mock_get_payment):
+        mock_get_payment.return_value = self._approved_info()
+
+        first = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        second = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "PAID")
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_pending_keeps_order_pending(self, mock_get_payment):
+        info = self._approved_info()
+        info["status"] = "pending"
+        mock_get_payment.return_value = info
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.payment.refresh_from_db()
+        self.assertEqual(self.order.status, "PENDING")
+        self.assertEqual(self.payment.status, Payment.PaymentStatus.PENDING)
+
+    @patch("apps.payments.integrations.mercadopago.MercadoPagoClient.get_payment_info")
+    def test_confirm_requires_authentication(self, mock_get_payment):
+        mock_get_payment.return_value = self._approved_info()
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post("/api/payments/confirm/", {
+            "order_id": self.order.id,
+            "payment_id": "567890",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
         

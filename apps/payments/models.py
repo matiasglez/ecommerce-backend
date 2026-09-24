@@ -16,6 +16,7 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     payment_method = models.CharField(max_length=30, choices=PaymentMethod.choices, default=PaymentMethod.MOCK)
+    init_point = models.CharField(max_length=500, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     
