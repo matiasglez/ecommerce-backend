@@ -2,6 +2,7 @@ import html
 
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from django.db.models import Count
 from django.utils.text import slugify
 
 from apps.products.models import Category, Product
@@ -152,6 +153,21 @@ class Command(BaseCommand):
             product.save()
 
             self.stdout.write(self.style.SUCCESS(f"{'Creado' if created else 'Actualizado'} producto: {product.name}"))
+
+        # Self-heal: si dos deploys corren el seed a la vez, get_or_create puede
+        # duplicar productos. Nos quedamos con el mas antiguo (OrderItem usa
+        # SET_NULL, el historial de compras sobrevive).
+        duplicated_names = list(
+            Product.objects.values("name")
+            .annotate(total=Count("id"))
+            .filter(total__gt=1)
+            .values_list("name", flat=True)
+        )
+        for name in duplicated_names:
+            keep = Product.objects.filter(name=name).order_by("id").first()
+            removed = Product.objects.filter(name=name).exclude(pk=keep.pk).count()
+            Product.objects.filter(name=name).exclude(pk=keep.pk).delete()
+            self.stdout.write(self.style.WARNING(f"Duplicados eliminados de '{name}': {removed}"))
 
         if not User.objects.filter(email="admin@voltstore.com").exists():
             User.objects.create_user(
