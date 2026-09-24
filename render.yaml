@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: volt-api
+    name: volt-matiasglez-ecommerce
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
