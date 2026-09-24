@@ -2,11 +2,24 @@
 
 **[English](README.md) | [Español](README.es.md)**
 
+![Python](https://img.shields.io/badge/Python-3.12-3776AB)
+![Django](https://img.shields.io/badge/Django-REST-092E20)
+![Tests](https://img.shields.io/badge/tests-78-brightgreen)
+![Docker](https://img.shields.io/badge/Docker-yes-2496ED)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1)
+
 A REST API for an online store, built with **Django REST Framework**.
 
 It includes: a product catalog with categories, a shopping cart, orders with automatic expiration, payments with Mercado Pago (plus a `MOCK` method for development) and a webhook with HMAC-SHA256 signature verification.
 
 > Made as a backend developer portfolio. Interactive API docs available in Swagger.
+
+**Live Swagger:** https://volt-matiasglez-ecommerce.onrender.com/api/schema/swagger-ui/  
+**Demo store (consumes this API):** https://volt-store-plum.vercel.app
+
+| Home | Products | Swagger |
+|------|----------|---------|
+| ![Home](docs/screenshots/home.png) | ![Products](docs/screenshots/products.png) | ![Swagger](docs/screenshots/swagger.png) |
 
 ## Tech stack
 
@@ -196,6 +209,13 @@ docker compose run --rm web python manage.py test apps.payments
 - The Docker setup uses Django `runserver`; for production you need `gunicorn` and serving `static`/`media` (e.g. WhiteNoise).
 - No email verification or password recovery.
 
+## Lessons from production
+
+- Debugged a silent Mercado Pago failure: the API returned `init_point: null` because env/MP errors were swallowed. Non-2xx Mercado Pago responses now surface the real cause to the client.
+- Stable pagination requires explicit ordering — Postgres was repeating and skipping rows across pages until the queryset got a deterministic `order_by`.
+- Seed idempotency: upsert by natural key and clean duplicates before writing so redeploys never crash on `MultipleObjectsReturned`.
+
 ## Contact
 
 - Email: [matiasezequielgonzalez365@gmail.com](mailto:matiasezequielgonzalez365@gmail.com)
+- GitHub: [github.com/matiasglez](https://github.com/matiasglez)
