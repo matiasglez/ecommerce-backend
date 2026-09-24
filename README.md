@@ -178,7 +178,15 @@ If the order expires before paying, when you try to pay it gets cancelled (CANCE
 
 ## Tests
 
-The test suite has **78 tests**: users, products, categories, cart, orders, payments, webhook and webhook signature.
+The test suite has **78 tests** covering the full API flow:
+
+| App | Tests | Covers |
+|-----|-------|--------|
+| `users` | 4 | Registration, duplicate email, password hashing, JWT login |
+| `products` | 14 | Catalog CRUD, staff/anonymous permissions, category filters, UUIDs, auto slug, non-negative stock |
+| `cart` | 11 | Add/increment items, stock limits, totals, per-user carts, auth |
+| `orders` | 16 | Checkout (stock decrease, historical price, cart clearing), order expiration, stock restoration (without double restore) |
+| `payments` | 33 | MOCK + Mercado Pago payments, permissions, webhook approve/reject, HMAC-SHA256 signature, confirm idempotency |
 
 ```bash
 docker compose run --rm web python manage.py test

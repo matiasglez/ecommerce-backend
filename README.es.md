@@ -163,7 +163,15 @@ Si la orden vence antes de pagarse, al intentar pagarla se cancela (CANCELLED) y
 
 ## Tests
 
-La suite tiene **78 tests** de API: usuarios, productos, categorías, carrito, órdenes, pagos, webhook y la firma del webhook.
+La suite tiene **78 tests** que cubren el flujo completo de la API:
+
+| App | Tests | Cubre |
+|-----|-------|-------|
+| `users` | 4 | Registro, email duplicado, hash de contraseña, login JWT |
+| `products` | 14 | CRUD del catálogo, permisos staff/anónimo, filtros por categoría, UUIDs, slug automático, stock no negativo |
+| `cart` | 11 | Agregar/incrementar items, límites de stock, totales, carrito por usuario, auth |
+| `orders` | 16 | Checkout (baja de stock, precio histórico, vaciado de carrito), expiración de orden, restauración de stock (sin doble restore) |
+| `payments` | 33 | Pagos MOCK + Mercado Pago, permisos, webhook approve/reject, firma HMAC-SHA256, idempotencia del confirm |
 
 ```bash
 docker compose run --rm web python manage.py test
