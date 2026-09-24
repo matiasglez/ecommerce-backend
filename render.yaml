@@ -18,6 +18,8 @@ services:
         value: https://volt-store-plum.vercel.app,https://volt-store-matiasglez.vercel.app
       - key: FRONTEND_URL
         value: https://volt-store-plum.vercel.app
+      - key: WEBHOOK_URL
+        value: https://volt-matiasglez-ecommerce.onrender.com
       - key: POSTGRES_HOST
         fromDatabase:
           name: ecommerce-db
