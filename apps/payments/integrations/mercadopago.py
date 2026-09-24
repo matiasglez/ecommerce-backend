@@ -86,12 +86,30 @@ class MercadoPagoClient:
         }
 
         preference_response = self.sdk.preference().create(preference_data)
-        
-        response_data = preference_response.get("response", {})
-        
+        status_code = preference_response.get("status", 0) if isinstance(preference_response, dict) else 0
+        response_data = preference_response.get("response", {}) if isinstance(preference_response, dict) else {}
+
         if not response_data and isinstance(preference_response, dict):
             response_data = preference_response
-        
+
+        # No traguemos errores de MP: si algo falla, devolvemos el motivo real.
+        if status_code and not (200 <= int(status_code) < 300):
+            message = ""
+            if isinstance(response_data, dict):
+                message = response_data.get("message") or response_data.get("error") or ""
+                cause = response_data.get("cause") or []
+                if isinstance(cause, list) and cause:
+                    first = cause[0]
+                    if isinstance(first, dict):
+                        message = message or first.get("description") or first.get("message") or ""
+            detail = message or f"HTTP {status_code}"
+            raise RuntimeError(f"Mercado Pago rechazó la preferencia: {detail}")
+
+        if not response_data.get("init_point"):
+            raise RuntimeError(
+                f"Mercado Pago no devolvió init_point (status={status_code}): {response_data}"
+            )
+
         return response_data
 
     def get_payment_info(self, payment_id):

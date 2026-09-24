@@ -66,7 +66,11 @@ class PaymentService:
             # Metodo MERCADO PAGO
             if payment_method == Payment.PaymentMethod.MERCADO_PAGO:
                 mp_client = MercadoPagoClient()
-                preference = mp_client.create_preference(order, payment)
+                try:
+                    preference = mp_client.create_preference(order, payment)
+                except Exception as exc:
+                    # Propagamos el motivo real al frontend (token inválido, etc.)
+                    raise ValidationError({"error": str(exc)})
                 
                 # Guardamos la url de checkout para la respuesta
                 payment.init_point = preference.get("init_point") if preference else None
