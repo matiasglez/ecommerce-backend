@@ -195,3 +195,7 @@ docker compose run --rm web python manage.py test apps.payments
 - The real Mercado Pago integration needs a valid token and a public URL for the webhook; the `MOCK` flow lets you test everything else offline.
 - The Docker setup uses Django `runserver`; for production you need `gunicorn` and serving `static`/`media` (e.g. WhiteNoise).
 - No email verification or password recovery.
+
+## Contact
+
+- Email: [matiasezequielgonzalez365@gmail.com](mailto:matiasezequielgonzalez365@gmail.com)

@@ -80,8 +80,13 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Mi E-commerce DRF",
-    "DESCRIPTION": "Endpoints de mi app",
+    "TITLE": "VOLT — E-commerce API",
+    "DESCRIPTION": (
+        "API REST de una tienda online: catálogo con categorías, carrito, órdenes "
+        "con expiración y restock, y pagos con Mercado Pago (más método MOCK para "
+        "desarrollo). Proyecto de portfolio backend.\n\n"
+        "Contacto: matiasezequielgonzalez365@gmail.com"
+    ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,

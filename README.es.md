@@ -194,3 +194,7 @@ docker compose run --rm web python manage.py test apps.payments
 - El setup de Docker usa el dev server de Django (`runserver`); para producción faltaría `gunicorn` y servir `static`/`media` (p. ej. WhiteNoise).
 - No hay email de verificación ni recuperación de contraseña.
 ```
+
+## Contacto
+
+- Email: [matiasezequielgonzalez365@gmail.com](mailto:matiasezequielgonzalez365@gmail.com)
