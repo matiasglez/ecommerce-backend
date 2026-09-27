@@ -7,7 +7,6 @@ from django.db.models import Count
 from django.utils.text import slugify
 
 from apps.products.models import Category, Product
-from apps.users.models import User
 
 # Colores de la paleta VOLT
 DARK = "#0E0E12"
@@ -186,15 +185,6 @@ class Command(BaseCommand):
         # Y otra vez al final, por si dos seeds corrieron en paralelo durante
         # este mismo arranque.
         self._remove_duplicate_products()
-
-        if not User.objects.filter(email="admin@voltstore.com").exists():
-            User.objects.create_user(
-                email="admin@voltstore.com",
-                password="Volt123456!",
-                is_staff=True,
-                is_superuser=True,
-            )
-            self.stdout.write(self.style.SUCCESS("Creado superusuario demo: admin@voltstore.com / Volt123456!"))
 
         self.stdout.write(self.style.SUCCESS(
             f"Seed finalizado: {Product.objects.filter(is_active=True).count()} productos activos, "
